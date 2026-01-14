@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Run {
+  id        String   @id @default(cuid())
+  name      String?
+  framework String   @default("OTHER")
+  status    String   @default("RUNNING")
+  tags      RunTag[]
+  steps     Step[]
+  startedAt DateTime @default(now())
+  endedAt   DateTime?
+  metadata  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Step {
+  id           String   @id @default(cuid())
+  run          Run      @relation(fields: [runId], references: [id], onDelete: Cascade)
+  runId        String
+  parentStep   Step?    @relation("StepHierarchy", fields: [parentStepId], references: [id])
+  parentStepId String?
+  children     Step[]   @relation("StepHierarchy")
+  index        Int
+  name         String?
+  kind         String?
+  input        String?
+  output       String?
+  error        String?
+  status       String   @default("PENDING")
+  startedAt    DateTime @default(now())
+  endedAt      DateTime?
+  toolCalls    ToolCall[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([runId, index])
+}
+
+model ToolCall {
+  id        String   @id @default(cuid())
+  step      Step     @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  stepId    String
+  name      String
+  input     String?
+  output    String?
+  error     String?
+  status    String   @default("RUNNING")
+  startedAt DateTime @default(now())
+  endedAt   DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stepId])
+}
+
+model Tag {
+  id    Int     @id @default(autoincrement())
+  name  String  @unique
+  runs  RunTag[]
+}
+
+model RunTag {
+  run   Run @relation(fields: [runId], references: [id], onDelete: Cascade)
+  runId String
+  tag   Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagId Int
+
+  @@id([runId, tagId])
+}
