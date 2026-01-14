@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# agent-trace — Open Source Agent Debugger
 
-## Getting Started
+See exactly what your agent did. Ingest any agent trace (LangChain, LangGraph, CrewAI, or custom JSON), then replay it step-by-step with tool inputs/outputs, errors, durations, and per-tool analytics.
 
-First, run the development server:
+## What it does
+- Ingest JSON traces via API or the UI.
+- List runs; view a run as a timeline of steps and tool calls.
+- Inspect inputs, outputs, and errors for every step and tool invocation.
+- Analytics: run/step/tool durations, tool latency buckets, per-tool success/fail and average durations.
+- Manage runs (delete) and browse built-in docs/snippets for integrations.
 
+## Quick start (local)
 ```bash
+npm install
+echo 'DATABASE_URL="file:./prisma/dev.db"' > .env
+npm run db:push
+npm run db:seed   # optional demo data
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# open http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Ingest API
+- Endpoint: `POST /api/ingest`
+- Payload shape (minimal):
+```json
+{
+  "name": "My run",
+  "framework": "LANGCHAIN",
+  "status": "SUCCESS",
+  "tags": ["demo"],
+  "metadata": {"user": "alice"},
+  "steps": [
+    {
+      "index": 0,
+      "name": "Plan",
+      "kind": "THOUGHT",
+      "input": {"question": "Hello?"},
+      "status": "SUCCESS",
+      "toolCalls": [
+        {
+          "name": "search",
+          "input": {"q": "hi"},
+          "output": {"answer": "hello"},
+          "status": "SUCCESS"
+        }
+      ]
+    }
+  ]
+}
+```
+- Optional for richer analytics: add `startedAt`/`endedAt` to runs, steps, and toolCalls (ISO timestamps) to see durations and latency buckets.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## UI flows
+- Home: send a sample trace, paste your JSON, or use presets (LangChain/LangGraph/CrewAI). Recent runs show View/Delete actions.
+- Run detail: timeline of steps and tool calls with inputs/outputs/errors, per-step/tool durations, tool latency histogram, per-tool success/fail and averages.
+- Docs: integration snippets for LangChain (JS), LangGraph (JS), CrewAI (Python) at `/docs`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Integration snippets (see `/docs` in the app)
+- LangChain (JS): serialize your chain/agent steps + tool calls and POST to `/api/ingest`.
+- LangGraph (JS): map node events to steps with toolCalls, then POST.
+- CrewAI (Python): build the same payload and `requests.post` it.
 
-## Learn More
+## Scripts
+- `npm run dev` — start dev server
+- `npm run lint` — lint
+- `npm run db:push` — sync Prisma schema to SQLite
+- `npm run db:seed` — load demo data
 
-To learn more about Next.js, take a look at the following resources:
+## Tech
+- Next.js (App Router), Tailwind
+- Prisma + SQLite (swap to Postgres by updating `DATABASE_URL` and schema)
+- Zod validation on ingest
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Notes
+- No AI dependency: the app only renders and analyzes the traces you send.
+- Delete runs from the UI to keep the list clean.
